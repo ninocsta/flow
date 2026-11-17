@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Uso (de dentro de uma sessão do Claude em modo serviço): flow-chamar "motivo curto"
+# Acha a própria sessão pelo pid (sobe a árvore de processos), tira da espera no Flow e notifica.
+set -uo pipefail
+P="http://127.0.0.1:${PAINEL_PORT:-8765}"
+cards=$(curl -fs "$P/api/sessions") || { echo "Flow fora do ar"; exit 1; }
+pid=$$; sid=""
+while [ "$pid" -gt 1 ] && [ -z "$sid" ]; do
+  sid=$(jq -r --argjson p "$pid" '.cards[] | select(.live and .pid == $p) | .id' <<<"$cards" | head -1)
+  pid=$(ps -o ppid= -p "$pid" | tr -d ' ')
+done
+[ -n "$sid" ] || { echo "sessão não encontrada no Flow"; exit 1; }
+jq -nc --arg i "$sid" --arg m "${1:-}" '{id:$i,motivo:$m}' | curl -fs -X POST -H 'X-Painel: 1' -H 'Content-Type: application/json' -d @- "$P/api/chamar" >/dev/null && echo "chamado"

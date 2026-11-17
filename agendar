@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""flow-agendar: agenda no Flow (sobrevive a fechar a sessão; roda quando o Flow estiver de pé).
+
+  flow-agendar "amanhã 08:07" "prompt"            retoma ESTA sessão (achada pelo pid) e digita o prompt
+  flow-agendar --nova --cwd ~/projetos "seg-sex 08:00" "/dia" --recorrente
+  flow-agendar --aviso "16:50" "Reunião às 17h" [--link URL] [--icone 📅]
+  flow-agendar --lista | --cancelar ID | --rodar ID
+Quando: HH:MM | amanhã HH:MM | DD/MM HH:MM | AAAA-MM-DD HH:MM | +30m | +2h.
+--recorrente: o 1º argumento vira a recorrência ("diario 07:50", "seg-sex 08:07", "seg,qua 10:00").
+"""
+import argparse, json, os, subprocess, sys, time, urllib.request
+
+P = f"http://127.0.0.1:{os.environ.get('PAINEL_PORT', '8765')}"
+
+
+def call(path, data=None):
+    req = urllib.request.Request(P + path, data=json.dumps(data).encode() if data is not None else None,
+                                 headers={"X-Painel": "1", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return json.loads(e.read() or b"{}")
+    except OSError:
+        sys.exit("Flow fora do ar (rode: flow)")
+
+
+def own_session():
+    cards = call("/api/sessions")["cards"]
+    pid = os.getpid()
+    while pid > 1:
+        c = next((c for c in cards if c.get("live") and c.get("pid") == pid), None)
+        if c:
+            return c
+        try:
+            pid = int(subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)], capture_output=True, text=True).stdout.strip())
+        except ValueError:
+            break
+    return None
+
+
+def hora(t):
+    return time.strftime("%d/%m %H:%M", time.localtime(t))
+
+
+a = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+a.add_argument("quando", nargs="?")
+a.add_argument("prompt", nargs="?", default="")
+g = a.add_mutually_exclusive_group()
+g.add_argument("--nova", action="store_true", help="abre sessão nova com o prompt")
+g.add_argument("--aviso", action="store_true", help="só notifica (o 2º argumento é o texto)")
+a.add_argument("--sessao", help="id da sessão a retomar (padrão: a atual)")
+a.add_argument("--titulo")
+a.add_argument("--cwd")
+a.add_argument("--link")
+a.add_argument("--icone", help="emoji do item (ex.: ✂️ 📅 🚀); sem ele o Flow chuta pelo texto")
+a.add_argument("--recorrente", action="store_true")
+a.add_argument("--atraso-max-h", type=float)
+a.add_argument("--lista", action="store_true")
+a.add_argument("--cancelar")
+a.add_argument("--rodar")
+x = a.parse_args()
+
+if x.lista:
+    for i in call("/api/agenda")["agenda"]:
+        print(f"{i['id']}  {hora(i['quando'])}  {i['status']:9} {i['tipo']:7} {i['titulo']}"
+              + (f"  ({i['recorrencia']})" if i.get("recorrencia") else ""))
+    sys.exit()
+if x.cancelar or x.rodar:
+    r = call("/api/agenda/cancelar" if x.cancelar else "/api/agenda/rodar", {"id": x.cancelar or x.rodar})
+    sys.exit(0 if r.get("ok") else "id não achado")
+if not x.quando:
+    a.error("informe quando")
+
+d = {"prompt": x.prompt, "titulo": x.titulo, "link": x.link, "icone": x.icone, "origem": "flow-agendar"}
+d["recorrencia" if x.recorrente else "quando"] = x.quando
+if x.atraso_max_h is not None:
+    d["atraso_max_h"] = x.atraso_max_h
+me = own_session() if not x.sessao else None
+if me:
+    d["criado_por"] = me["id"]
+if x.aviso:
+    d.update(tipo="aviso", nota=x.prompt, titulo=x.titulo or x.prompt[:60], prompt="")
+elif x.nova:
+    d.update(tipo="nova", cwd=x.cwd or os.getcwd(), conf=(me or {}).get("conf") or ".claude-trabalho")
+else:
+    sid = x.sessao or (me or {}).get("id")
+    if not sid:
+        sys.exit("sessão atual não achada no Flow: use --sessao ID ou --nova")
+    d.update(tipo="retomar", sessao=sid, titulo=x.titulo or (me or {}).get("title"))
+r = call("/api/agenda", d)
+if r.get("erro"):
+    sys.exit(r["erro"])
+i = r["item"]
+print(f"agendado {i['id']}: {i['tipo']} em {hora(i['quando'])} — {i['titulo']}")

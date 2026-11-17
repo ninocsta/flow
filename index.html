@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow</title>
+<style>
+:root {
+  --bg: #22272e; --panel: #2d333b; --panel2: #333a44; --line: #3d444d;
+  --fg: #c5d1de; --fg2: #909dab; --strong: #e6edf3;
+  --blue: #6cb6ff; --green: #8ddb8c; --yellow: #daaa3f; --red: #f47067; --orange: #ff8a3d;
+  font-size: 14px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.4 "Inter", "Ubuntu Sans", system-ui, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+button { font: inherit; cursor: pointer; }
+.bar { display: flex; align-items: center; gap: 8px; padding: 0 8px; min-height: 100vh; flex: none; }
+body.exp .bar { min-height: 46px; border-bottom: 1px solid var(--line); flex-wrap: wrap; padding: 6px 8px; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; flex: none; }
+.seg button { background: none; border: 0; color: var(--fg2); padding: 3px 9px; border-radius: 6px; display: inline-flex; gap: 5px; align-items: center; }
+.seg button.on { background: var(--panel2); color: var(--strong); font-weight: 600; }
+.badge { background: var(--orange); color: #1c2128; border-radius: 999px; font-size: .72rem; font-weight: 700; padding: 0 6px; }
+.chips { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+body.exp .chips { display: none; }
+body.exp .bar .sp { flex: 1; }
+.chip { flex: none; display: flex; flex-direction: column; gap: 3px; width: 330px; padding: 4px 8px; border-radius: 8px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); color: var(--fg); white-space: nowrap; }
+.chip .l1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chip .t { flex: 1; min-width: 0; }
+.chip .l2 { display: flex; gap: 3px; }
+.chip .l2 button { background: none; border: 1px solid var(--line); color: var(--fg2); border-radius: 5px; padding: 1px 8px; font-size: .9rem; line-height: 1.3; }
+.chip .l2 button[data-a=pin]:not(.on) { filter: grayscale(1); opacity: .5; }
+.chip .l2 button:hover { color: var(--strong); border-color: var(--blue); }
+.chip .l2 button.on { color: var(--yellow); border-color: var(--yellow); }
+.chip .l2 button.x:hover { color: var(--red); border-color: var(--red); }
+.chip .l2 .sp { flex: 1; }
+.chip .rs { font-size: .78rem; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.waiting .rs { color: #ffb27a; }
+.chip .mt { font-size: .72rem; color: var(--fg2); align-self: center; white-space: nowrap; }
+.mt .c-warn { color: var(--yellow); } .mt .c-bad { color: var(--red); font-weight: 700; }
+.chip:hover { border-color: var(--fg2); }
+.chip .t { overflow: hidden; text-overflow: ellipsis; }
+.chip .w { font-size: .78rem; color: var(--fg2); }
+.chip.aberta { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); color: var(--strong); }
+.chip.fixada { border-color: var(--yellow); }
+.chip.novo { color: #fff; font-weight: 600; }
+.chip.waiting { background: #3a2e26; border-color: #6b4a33; }
+.w.t-warn { color: var(--yellow); } .w.t-bad { color: var(--red); font-weight: 700; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg2); flex: none; }
+.dot.busy { background: var(--yellow); } .dot.idle { background: var(--green); }
+.dot.waiting { background: var(--orange); animation: pulse 1.4s ease-in-out infinite; } .dot.duplicada, .dot.sem { background: var(--red); }
+@keyframes pulse { 50% { opacity: .35; } }
+.ib { flex: none; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 3px 9px; white-space: nowrap; }
+.ib:hover { border-color: var(--blue); }
+.ib.on { background: #1f3650; color: var(--blue); border-color: var(--blue); font-weight: 600; }
+.ib.p { background: var(--blue); color: #10161d; border-color: var(--blue); font-weight: 700; }
+main { display: none; flex: 1; overflow-y: auto; padding: 10px 12px 30px; }
+body.exp main { display: block; }
+#q { background: var(--panel); color: var(--strong); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; font: inherit; width: 100%; margin-bottom: 8px; }
+h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--fg2); margin: 18px 2px 8px; font-weight: 600; display: flex; align-items: center; }
+.row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 6px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--line); }
+.row:hover { background: var(--panel2); border-color: var(--fg2); }
+.row .t { font-size: 1.02rem; font-weight: 500; }
+.row .tx { display: grid; gap: 2px; }
+.row .h, .row .n { white-space: normal !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row.aberta { border-color: var(--blue); }
+.row .tx { flex: 1; min-width: 0; cursor: pointer; }
+.row .t { color: var(--strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .n { color: var(--yellow); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .h { color: var(--fg2); font-size: .8rem; white-space: nowrap; }
+.row .a { display: flex; gap: 4px; opacity: .55; }
+.row:hover .a { opacity: 1; }
+.row .a button { background: none; border: 1px solid var(--line); color: var(--fg); border-radius: 6px; padding: 1px 7px; }
+.row .a button:hover { border-color: var(--blue); }
+.row .a button.on { color: var(--yellow); border-color: var(--yellow); }
+.row .a button.x:hover { color: var(--red); border-color: var(--red); }
+.empty { color: var(--fg2); padding: 4px 8px; }
+dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(520px, 94vw); box-shadow: 0 20px 60px #0009; }
+dialog::backdrop { background: #0008; }
+dialog form { display: grid; gap: 10px; padding: 14px 18px; }
+dialog label { display: grid; gap: 4px; font-size: .9rem; color: var(--fg2); }
+dialog input, dialog select, dialog textarea { background: var(--bg); color: var(--strong); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font: inherit; }
+dialog textarea { min-height: 5em; resize: vertical; }
+.ck { display: flex !important; align-items: center; gap: 8px; color: var(--fg) !important; }
+.ck small { color: var(--fg2); display: block; }
+.df { display: flex; gap: 8px; justify-content: flex-end; }
+.ag-pend .h b { color: var(--strong); font-weight: 600; }
+.row.ag-old .t { color: var(--red); }
+.ag-st { font-size: .75rem; border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; color: var(--fg2); white-space: nowrap; }
+.ag-st.perdido, .ag-st.erro { color: var(--red); border-color: var(--red); }
+.ag-st.atrasado { color: var(--yellow); border-color: var(--yellow); }
+.ib.ag-soon { color: var(--yellow); border-color: var(--yellow); }
+.alertas { display: contents; }
+body.exp .alertas { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; order: -1; }
+.alerta { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; flex: none;
+  background: #4a1f1c; border: 2px solid var(--red); color: #fff; animation: alarme 1s ease-in-out infinite; }
+.alerta .t { flex: 1; min-width: 0; font-weight: 700; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alerta .s { font-size: .82rem; color: #ffd2cc; font-weight: 400; display: block; }
+.alerta button { background: var(--red); color: #1c2128; border: 0; border-radius: 7px; padding: 4px 12px; font-weight: 700; }
+.alerta button.sec { background: none; color: #ffd2cc; border: 1px solid #ffd2cc; font-weight: 500; }
+@keyframes alarme { 50% { background: #7a2a24; box-shadow: 0 0 14px #f4706799; } }
+body.tocando .bar { box-shadow: inset 0 -3px 0 var(--red); }
+.toast { position: fixed; top: 6px; right: 10px; background: var(--panel2); border: 1px solid var(--line); padding: 4px 12px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="alertas" id="alertas"></div>
+  <div class="seg" id="seg"></div>
+  <div class="chips" id="chips"></div>
+  <span class="sp"></span>
+  <button class="ib" id="ag" title="Agenda">⏰ <span id="agN">0</span></button>
+  <button class="ib" id="rec" title="Mostrar/ocultar recentes">🕘 recentes</button>
+  <button class="ib" id="esp" title="Em espera">⏸ <span id="espN">0</span></button>
+  <button class="ib" id="auto" title="Quando você responder a sessão aberta, vai sozinho pra próxima que espera você (só com 1 tela)">Auto</button>
+  <button class="ib" id="lay" title="Barra em cima / painel à esquerda"></button>
+  <button class="ib p" id="novo" title="Nova sessão no espaço atual">+</button>
+  <button class="ib" id="exp" title="Expandir: espera, recentes, editar">▾</button>
+</div>
+<main id="main"><input id="q" placeholder="Buscar…"><div id="list"></div></main>
+
+<dialog id="dlgE">
+  <form method="dialog" id="fe">
+    <strong style="color:var(--strong)" id="feTit">Editar sessão</strong>
+    <label>Título <input name="titulo"></label>
+    <label>Nota <textarea name="nota" placeholder="O que falta, onde parei, quem estou esperando…"></textarea></label>
+    <label>Espaço <select name="espaco"><option value="trabalho">💼 Trabalho</option><option value="pessoal">🛠 GitHub</option></select></label>
+    <label class="ck"><input type="checkbox" name="espera"><span>Em espera<small>Sai da barra e não avisa.</small></span></label>
+    <label class="lembrar">Lembrar <select name="lembrar">
+      <option value="">sem lembrete</option><option value="30">em 30 min</option><option value="60">em 1 h</option>
+      <option value="120">em 2 h</option><option value="240">em 4 h</option><option value="amanha">amanhã 9h</option></select></label>
+    <label class="ck"><input type="checkbox" name="servico"><span>Modo serviço<small>Fica em espera sozinha; só aparece quando chama você ou pede confirmação.</small></span></label>
+    <div class="df"><button class="ib" value="cancel" formnovalidate>Cancelar</button><button class="ib p" value="ok">Salvar</button></div>
+  </form>
+</dialog>
+<dialog id="dlgA">
+  <form method="dialog" id="fa">
+    <strong style="color:var(--strong)">Agendar</strong>
+    <label>Tipo <select name="tipo">
+      <option value="aviso">⏰ Só avisar</option><option value="nova">✨ Abrir sessão nova com o prompt</option>
+      <option value="retomar">↻ Retomar uma sessão e digitar o prompt</option></select></label>
+    <label class="a-sess">Sessão <select name="sessao"></select></label>
+    <label>Quando <input name="quando" placeholder="amanhã 08:07 · 16:30 · 18/11 9:00 · +30m" required></label>
+    <label class="ck"><input type="checkbox" name="rec"><span>Repetir<small>No campo acima: "seg-sex 08:07", "diario 07:50", "seg,qua 10:00".</small></span></label>
+    <label>Título <input name="titulo"></label>
+    <label><span class="a-ptxt">Texto do aviso</span> <textarea name="prompt"></textarea></label>
+    <label class="a-cwd">Pasta <input name="cwd" value="~/projetos"></label>
+    <label class="a-link">Link (opcional) <input name="link" placeholder="https://meet.google.com/…"></label>
+    <div class="df"><button class="ib" value="cancel" formnovalidate>Cancelar</button><button class="ib p" value="ok">Agendar</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const H = { "Content-Type": "application/json", "X-Painel": "1" };
+let state = { cards: [], all: [], conf: {} };
+let espaco = "trabalho", editId = null;
+let showRec = false; try { showRec = localStorage.getItem("flowRec") === "1"; } catch {}
+
+function esc(s) { return (s ?? "").toString().replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function ago(t) {
+  const s = Math.max(0, Date.now() / 1000 - t);
+  return s < 60 ? "agora" : s < 3600 ? Math.floor(s / 60) + " min" : s < 86400 ? Math.floor(s / 3600) + " h" : Math.floor(s / 86400) + " d";
+}
+function short(p) { return (p || "").replace(/^\/home\/[^/]+/, "~"); }
+function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 1800); }
+async function post(url, body) { const r = await fetch(url, { method: "POST", headers: H, body: JSON.stringify(body) }); return r.json(); }
+const expanded = () => window.innerHeight > 140;
+const pinned = c => state.conf?.pin === c.id;
+const byKey = k => state.cards.find(x => `${x.id}:${x.pid || ""}` === k);
+const key = c => `${c.id}:${c.pid || ""}`;
+function quando(t) {
+  const d = new Date(t * 1000), hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? "às " + hm : d.toLocaleDateString("pt-BR", { weekday: "short" }) + " " + hm;
+}
+
+async function load() {
+  let fresh; try { fresh = await (await fetch("/api/sessions")).json(); } catch { return; }
+  if (window.__v && fresh.v !== window.__v) return location.reload();
+  window.__v = fresh.v;
+  if ($("#dlgE").open || $("#dlgA").open) return;
+  state = fresh; state.all = fresh.cards;
+  espaco = state.conf?.espaco || "trabalho";
+  state.cards = state.all.filter(c => c.espaco === espaco);
+  render();
+}
+
+const rank = c => c.status === "waiting" ? 0 : c.status === "idle" ? 1 : c.status === "busy" ? 2 : 3;
+function ativas() {
+  return state.cards.filter(c => c.live && !c.arquivada && !c.espera)
+    .sort((a, b) => rank(a) - rank(b) || (rank(a) <= 1 ? (a.status_since || 0) - (b.status_since || 0) : (b.updated || 0) - (a.updated || 0)));
+}
+function wait(c) {
+  if (!(c.live && ["idle", "waiting"].includes(c.status))) return "";
+  const m = (Date.now() / 1000 - (c.status_since || 0)) / 60;
+  return `<span class="w ${m < 5 ? "" : m < 15 ? "t-warn" : "t-bad"}">${m < 1 ? "agora" : Math.round(m) + "m"}</span>`;
+}
+
+function brl(v) { return "US$ " + (v >= 10 ? v.toFixed(0) : v.toFixed(2)).replace(".", ","); }
+function metrics(c) {
+  if (!c.ctx && !c.custo) return "";
+  const p = c.ctx_pct || 0, k = Math.round((c.ctx || 0) / 1000);
+  return `<span class="mt" title="Contexto: ${k} mil tokens de 1 milhão · custo equivalente na API (o plano não cobra por token)"><span class="${p >= 80 ? "c-bad" : p >= 60 ? "c-warn" : ""}">${p}%</span> · ${brl(c.custo || 0)}</span>`;
+}
+
+function render() {
+  document.body.classList.toggle("exp", expanded());
+  const conf = state.conf || {};
+  const pend = e => state.all.filter(c => c.espaco === e && c.live && !c.espera && !c.arquivada && ["idle", "waiting"].includes(c.status)).length;
+  $("#seg").innerHTML = [["trabalho", "💼"], ["pessoal", "🛠"]].map(([e, l]) => {
+    const n = pend(e);
+    return `<button data-e="${e}" class="${e === espaco ? "on" : ""}" title="${e === "trabalho" ? "Trabalho" : "Pessoal"}">${l}${n ? `<span class="badge">${n}</span>` : ""}</button>`;
+  }).join("");
+  const at = ativas();
+  $("#chips").innerHTML = at.length ? at.map(c => `<div class="chip ${c.status} ${c.aberta ? "aberta" : ""} ${pinned(c) ? "fixada" : ""} ${c.nao_visto ? "novo" : ""}"
+      data-key="${key(c)}" title="${esc(c.title + (c.nota ? "\n📝 " + c.nota : "") + "\n" + short(c.cwd))}\nClique: só ela · Shift+clique: na direita · botão direito: editar">
+      <div class="l1"><span class="dot ${c.status}"></span><span class="t">${esc(c.title)}</span>${agSess(c) ? `<span title="Agendado ${quando(agSess(c).quando)}: ${esc(agSess(c).titulo)}">⏰</span>` : ""}${wait(c)}</div>
+      <div class="rs" title="${esc(c.resumo || "")}">${esc(c.resumo || "—")}</div>
+      <div class="l2">
+        <button data-a="pin" class="${pinned(c) ? "on" : ""}" title="${pinned(c) ? "Fixada: clique pra soltar" : "Fixar: o Auto não troca"}">📌</button>
+        <button data-a="espera" title="Pôr em espera">⏸</button>
+        <button data-a="edit" title="Editar">✎</button>
+        <button data-a="copy" title="Copiar comando de retomar">⧉</button>
+        <button data-a="agendar" title="Agendar retomada desta sessão">⏰</button>
+        <span class="sp"></span>
+        ${metrics(c)}
+        <button data-a="esq" title="Pôr na esquerda (a da direita fica)">◧</button>
+        <button data-a="dir" title="Pôr na direita (a da esquerda fica)">◨</button>
+        ${c.kitty ? `<button data-a="close" class="x" title="Fechar sessão">×</button>` : ""}
+      </div></div>`).join("")
+    : `<span class="empty">Nenhuma sessão ativa.</span>`;
+  const toc = (state.agenda || []).filter(i => i.status === "tocando");
+  document.body.classList.toggle("tocando", !!toc.length);
+  $("#alertas").innerHTML = toc.map(i => `<div class="alerta" data-ag="${i.id}">
+    <span style="font-size:1.4rem">${i.icone || "⏰"}</span>
+    <span class="t">${esc(i.titulo)}<span class="s">${esc(i.nota || "")} · tocou ${quando(i.tocou || i.quando)}</span></span>
+    ${i.link ? `<button class="sec" data-x="abrir">Entrar</button>` : ""}
+    <button class="sec" data-x="soneca" title="Lembrar de novo em 10 min">+10 min</button>
+    <button data-x="ok">OK</button></div>`).join("");
+  document.title = toc.length ? `${toc[0].icone || "⏰"} ${toc[0].titulo}` : "Flow";
+  const pa = agPend();
+  const pd = agDecidir().length;
+  $("#agN").textContent = pa.length + (pd ? ` · ⚠${pd}` : "");
+  $("#ag").style.color = pd ? "var(--red)" : "";
+  $("#ag").classList.toggle("ag-soon", !!pa.length && pa[0].quando - Date.now() / 1000 < 900);
+  $("#ag").title = pa.length ? `Próximo: ${pa[0].titulo} ${quando(pa[0].quando)}` : "Agenda vazia · clique pra agendar";
+  const esp = state.cards.filter(c => c.espera && !c.arquivada);
+  $("#espN").textContent = esp.length;
+  $("#auto").classList.toggle("on", !!conf.auto);
+  $("#rec").classList.toggle("on", showRec);
+  $("#lay").textContent = (conf.layout || "topo") === "topo" ? "⬒ topo" : "◧ lado";
+  $("#exp").textContent = expanded() ? "▴" : "▾";
+  $("#exp").style.display = (conf.layout || "topo") === "topo" ? "" : "none";
+  if (expanded()) renderList(at, esp);
+}
+
+function row(c, kind) {
+  const acts = kind === "ativa"
+    ? `<button data-a="espera" title="Pôr em espera">⏸</button>
+       <button data-a="pin" class="${pinned(c) ? "on" : ""}" title="Fixar: o Auto não troca">📌</button>
+       <button data-a="esq" title="Pôr na esquerda">◧</button>
+       <button data-a="dir" title="Pôr na direita">◨</button>
+       <button data-a="edit" title="Editar">✎</button>
+       <button data-a="copy" title="Copiar comando de retomar">⧉</button>
+       ${c.kitty ? `<button data-a="close" class="x" title="Fechar sessão">×</button>` : ""}`
+    : kind === "espera"
+    ? `${c.live && c.kitty ? `<button data-a="open">Ver</button>` : ""}<button data-a="voltar">Voltar</button><button data-a="edit">✎</button>`
+    : `<button data-a="resume" title="Retomar">↻</button><button data-a="copy" title="Copiar comando">⧉</button>`;
+  const sub = kind === "espera"
+    ? `<div class="n">${esc(c.nota || "(sem nota)")}</div><div class="h">há ${ago(c.espera_desde || c.updated)}${c.espera_ate ? " · lembra " + quando(c.espera_ate) : ""}${c.live ? "" : " · janela fechada"}</div>`
+    : (c.nota ? `<div class="n">📝 ${esc(c.nota)}</div>` : "") + (c.resumo ? `<div class="h">${esc(c.resumo)}</div>` : "");
+  return `<div class="row ${c.aberta ? "aberta" : ""}" data-key="${key(c)}">
+    <span class="dot ${c.live ? c.status : ""}"></span>
+    <div class="tx" data-a="${kind === "recente" ? "resume" : "open"}"><div class="t">${esc(c.title)}</div>${sub}</div>
+    ${kind === "recente" ? `<span class="h">${esc(short(c.cwd))} · ${ago(c.updated)}</span>` : wait(c)}
+    ${metrics(c)}
+    <div class="a">${acts}</div></div>`;
+}
+
+function renderList(at, esp) {
+  const q = $("#q").value.trim().toLowerCase();
+  const m = c => !q || (c.title + " " + c.cwd + " " + c.nota).toLowerCase().includes(q);
+  const rec = (showRec || q) ? state.cards.filter(c => !c.live && !c.arquivada && !c.espera && m(c)).slice(0, 15) : [];
+  const a = at.filter(m), e = esp.filter(m);
+  $("#list").innerHTML = renderAgenda() + `<h2>Ativas · ${a.length}</h2>${a.map(c => row(c, "ativa")).join("") || `<div class="empty">Nada.</div>`}`
+    + (e.length ? `<h2>⏸ Em espera · ${e.length}</h2>${e.map(c => row(c, "espera")).join("")}` : "")
+    + (rec.length ? `<h2>Recentes</h2>${rec.map(c => row(c, "recente")).join("")}` : "");
+}
+
+const AG_ICON = { aviso: "⏰", nova: "✨", retomar: "↻", google: "📅" };
+const agPend = () => (state.agenda || []).filter(i => i.status === "pendente" || i.status === "rodando");
+const agDecidir = () => (state.agenda || []).filter(i => i.status === "perdido" || i.status === "erro");
+const agSess = c => agPend().find(i => i.tipo === "retomar" && i.sessao === c.id);
+function renderAgenda() {
+  const p = agPend().filter(i => !(i.origem === "google" && i.chave?.endsWith(":1"))), old = agDecidir();
+  const sess = id => state.all.find(c => c.id === id);
+  const item = (i, pend) => `<div class="row ${pend ? "ag-pend" : "ag-old"}" data-ag="${i.id}">
+    <span style="font-size:1.25rem">${i.icone || AG_ICON[i.origem === "google" ? "google" : i.tipo] || "•"}</span>
+    <div class="tx" ${i.tipo === "retomar" && sess(i.sessao) ? `data-x="sess"` : ""}><div class="t">${esc(i.titulo)}</div>
+      <div class="h"><b>${quando(i.quando)}</b>${i.recorrencia ? " · 🔁 " + esc(i.recorrencia) : ""}${i.tipo === "retomar" ? " · " + esc(sess(i.sessao)?.title || i.sessao?.slice(0, 8)) : ""}${i.tipo === "nova" ? " · " + esc(short(i.cwd)) : ""}${i.log?.length ? " · " + esc(i.log.at(-1).msg) : ""}</div></div>
+    ${pend ? "" : `<span class="ag-st ${i.status}">${i.status}</span>`}
+    <div class="a">${pend ? `<button data-x="rodar" title="Rodar agora">▶</button><button data-x="hora" title="Mudar hora">🕑</button><button data-x="cancelar" class="x" title="Cancelar">×</button>`
+      : `${i.tipo !== "aviso" ? `<button data-x="rodar" title="Rodar agora">▶ rodar</button>` : ""}<button data-x="descartar" class="x" title="Descartar">× descartar</button>`}</div></div>`;
+  if (!p.length && !old.length) return `<h2>⏰ Agenda <button class="ib" id="agNovo" style="margin-left:8px;padding:0 8px">+ agendar</button></h2>`;
+  return (old.length ? `<h2>⚠ Agenda: decidir · ${old.length}</h2>${old.map(i => item(i, false)).join("")}` : "")
+    + `<h2 title="Reuniões (Google via Workspace): ${esc(state.gcal || "")}">⏰ Agenda · ${p.length} <button class="ib" id="agNovo" style="margin-left:8px;padding:0 8px">+ agendar</button></h2>`
+    + p.map(i => item(i, true)).join("");
+}
+async function agAcao(x, id) {
+  const i = (state.agenda || []).find(a => a.id === id); if (!i) return;
+  if (x === "ok") { await post("/api/agenda/ok", { id }); return load(); }
+  if (x === "soneca") { await post("/api/agenda/soneca", { id, min: 10 }); toast("Lembro em 10 min"); return load(); }
+  if (x === "abrir") { window.open(i.link, "_blank"); await post("/api/agenda/ok", { id }); return load(); }
+  if (x === "sess") { const c = state.all.find(c => c.id === i.sessao); return c?.live ? openSession(c) : acao("resume", c); }
+  if (x === "descartar") { await post("/api/agenda/cancelar", { id }); return load(); }
+  if (x === "cancelar") { if (!confirm(`Cancelar "${i.titulo}"?`)) return; await post("/api/agenda/cancelar", { id }); return load(); }
+  if (x === "rodar") { await post("/api/agenda/rodar", { id }); toast("Rodando…"); return setTimeout(load, 1500); }
+  if (x === "hora") {
+    const q = prompt("Nova hora (amanhã 08:07 · 16:30 · +30m)", ""); if (!q) return;
+    const r = await post("/api/agenda/hora", { id, quando: q }); toast(r.erro || "Hora alterada"); return load();
+  }
+}
+function openAgendar(c = null) {
+  const f = $("#fa"); f.reset(); f.cwd.value = espaco === "pessoal" ? "~/github" : "~/projetos";
+  const vivas = state.all.filter(x => x.live && !x.arquivada).concat(state.all.filter(x => !x.live && !x.arquivada).slice(0, 15));
+  f.sessao.innerHTML = vivas.map(x => `<option value="${x.id}">${x.live ? "● " : "○ "}${esc(x.title)}</option>`).join("");
+  if (c) { f.tipo.value = "retomar"; f.sessao.value = c.id; }
+  agTipo(); $("#dlgA").showModal(); setTimeout(() => f.quando.focus(), 30);
+}
+function agTipo() {
+  const f = $("#fa"), t = f.tipo.value;
+  f.sessao.closest("label").style.display = t === "retomar" ? "" : "none";
+  f.cwd.closest("label").style.display = t === "nova" ? "" : "none";
+  f.link.closest("label").style.display = t === "aviso" ? "" : "none";
+  $(".a-ptxt").textContent = t === "aviso" ? "Texto do aviso" : "Prompt";
+}
+$("#fa").tipo.addEventListener("change", agTipo);
+$("#dlgA").addEventListener("close", async () => {
+  if ($("#dlgA").returnValue !== "ok") return;
+  const f = $("#fa"), t = f.tipo.value, txt = f.prompt.value.trim();
+  const sel = state.all.find(x => x.id === f.sessao.value);
+  const body = { tipo: t, titulo: f.titulo.value.trim() || (t === "retomar" ? sel?.title : txt.slice(0, 60)), [f.rec.checked ? "recorrencia" : "quando"]: f.quando.value.trim() };
+  if (t === "aviso") Object.assign(body, { nota: txt, link: f.link.value.trim() || null });
+  else Object.assign(body, { prompt: txt });
+  if (t === "nova") Object.assign(body, { cwd: f.cwd.value.trim(), conf: espaco === "pessoal" ? ".claude" : ".claude-trabalho" });
+  if (t === "retomar") Object.assign(body, { sessao: f.sessao.value, conf: sel?.conf });
+  const r = await post("/api/agenda", body);
+  toast(r.erro ? "Erro: " + r.erro : "Agendado " + quando(r.item.quando)); load();
+});
+$("#ag").addEventListener("click", async () => { if (!expanded()) await setExp(true); });
+
+async function openSession(c, lado = null) {
+  if (!c?.live || !c.kitty) return toast("Janela não achada");
+  const r = await post("/api/focus", { pid: c.pid, lado });
+  if (!r.ok) toast("Não achei a janela");
+  setTimeout(load, 400);
+}
+async function setExp(on) { state.conf = await post("/api/config", { aberta: on }); setTimeout(render, 250); }
+
+$("#alertas").addEventListener("click", e => {
+  const ax = e.target.closest("[data-x]"); if (ax) agAcao(ax.dataset.x, ax.closest("[data-ag]").dataset.ag);
+});
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  const el = e.target.closest("[data-a]");
+  if (el) return acao(el.dataset.a, byKey(b.dataset.key));
+  openSession(byKey(b.dataset.key), e.shiftKey ? "dir" : null);
+});
+$("#chips").addEventListener("auxclick", e => { const b = e.target.closest(".chip"); if (b && e.button === 1) openSession(byKey(b.dataset.key), "dir"); });
+$("#chips").addEventListener("contextmenu", e => { const b = e.target.closest(".chip"); if (!b) return; e.preventDefault(); openEdit(byKey(b.dataset.key)); });
+$("#chips").addEventListener("wheel", e => { if (e.deltaY) { $("#chips").scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+$("#seg").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b || b.dataset.e === espaco) return;
+  espaco = b.dataset.e; state.conf = await post("/api/config", { espaco }); load();
+});
+$("#esp").addEventListener("click", () => setExp(!expanded()));
+$("#rec").addEventListener("click", async () => {
+  showRec = !showRec; try { localStorage.setItem("flowRec", showRec ? "1" : "0"); } catch {}
+  if (!expanded()) await setExp(true); render();
+});
+$("#exp").addEventListener("click", () => setExp(!expanded()));
+$("#auto").addEventListener("click", async () => { state.conf = await post("/api/config", { auto: !state.conf.auto }); toast(state.conf.auto ? "Auto ligado" : "Auto desligado"); render(); });
+$("#lay").addEventListener("click", async () => {
+  state.conf = await post("/api/config", { layout: (state.conf.layout || "topo") === "topo" ? "lado" : "topo" }); setTimeout(render, 300);
+});
+$("#novo").addEventListener("click", async () => {
+  const cwd = espaco === "pessoal" ? "~/github" : "~/projetos";
+  const r = await post("/api/launch", { cwd }); toast(r.ok ? "Abrindo Claude em " + cwd + "…" : "Não consegui abrir"); setTimeout(load, 1500);
+});
+$("#q").addEventListener("input", render);
+window.addEventListener("resize", render);
+
+$("#list").addEventListener("click", async e => {
+  if (e.target.id === "agNovo") return openAgendar();
+  const ax = e.target.closest("[data-x]");
+  if (ax) return agAcao(ax.dataset.x, ax.closest("[data-ag]").dataset.ag);
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  acao(el.dataset.a, byKey(el.closest(".row").dataset.key));
+});
+async function acao(a, c) {
+  if (!c) return;
+  if (a === "open") return openSession(c);
+  if (a === "esq" || a === "dir") return openSession(c, a);
+  if (a === "edit") return openEdit(c);
+  if (a === "agendar") { if (!expanded()) { await setExp(true); await new Promise(r => setTimeout(r, 350)); } return openAgendar(c); }
+  if (a === "espera") return openEdit(c, true);
+  if (a === "pin") {
+    state.conf = await post("/api/config", { pin: pinned(c) ? null : c.id });
+    toast(state.conf.pin ? "Fixada: não troca sozinho" : "Solta: Auto volta a trocar"); return render();
+  }
+  if (a === "close") { const r = await post("/api/close", { pid: c.pid }); toast(r.ok ? "Sessão fechada" : "Não consegui fechar"); return setTimeout(load, 800); }
+  if (a === "voltar") { await post("/api/tag", { id: c.id, espera: false }); return load(); }
+  if (a === "copy") { await navigator.clipboard.writeText(`cd ${short(c.cwd)} && claude --resume ${c.id}`); return toast("Copiado"); }
+  if (a === "resume") { const r = await post("/api/launch", { resume: c.id, cwd: c.cwd, conf: c.conf }); toast(r.ok ? "Abrindo…" : "Pasta não existe"); setTimeout(load, 1500); }
+}
+
+function lembrarAte(v) {
+  if (v === "amanha") { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d.getTime() / 1000; }
+  return Date.now() / 1000 + Number(v) * 60;
+}
+async function openEdit(c, espera = false) {
+  if (!c) return;
+  if (!expanded()) { await setExp(true); await new Promise(r => setTimeout(r, 350)); }
+  const f = $("#fe"); editId = c.id;
+  f.titulo.value = c.title; f.nota.value = c.nota || ""; f.espera.checked = espera || !!c.espera; f.servico.checked = !!c.servico; f.espaco.value = c.espaco; f.lembrar.value = "";
+  f.lembrar.closest("label").style.display = f.espera.checked ? "" : "none";
+  $("#feTit").textContent = espera ? "Pôr em espera" : "Editar sessão";
+  $("#dlgE").showModal();
+  setTimeout(() => f.nota.focus(), 30);
+}
+$("#fe").espera.addEventListener("change", e => { $("#fe").lembrar.closest("label").style.display = e.target.checked ? "" : "none"; });
+$("#fe").addEventListener("keydown", e => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); $("#dlgE").close("ok"); } });
+$("#dlgE").addEventListener("close", async () => {
+  const id = editId; editId = null;
+  if ($("#dlgE").returnValue !== "ok" || !id) return load();
+  const f = $("#fe");
+  await post("/api/tag", { id, titulo: f.titulo.value.trim(), nota: f.nota.value.trim(), espera: f.espera.checked, servico: f.servico.checked, espaco: f.espaco.value,
+    ...(f.espera.checked && f.lembrar.value ? { espera_ate: lembrarAte(f.lembrar.value) } : {}) });
+  toast(f.espera.checked ? "Em espera" : "Salvo"); load();
+});
+
+load();
+setInterval(load, 3000);
+</script>
+</body>
+</html>
