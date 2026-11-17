@@ -2,7 +2,7 @@
 """Flow: painel local das sessões do Claude Code + agenda. Só stdlib.
 
 Lê ~/.claude*/sessions/<pid>.json (sessões vivas) e os transcripts .jsonl,
-guarda título/assunto manual em ~/.local/share/claude-painel/tags.json,
+guarda título/assunto manual em ~/.local/share/flow/tags.json,
 foca a janela via hyprctl e abre sessão nova no kitty.
 """
 import json
@@ -25,7 +25,7 @@ os.environ["PATH"] = f"{Path.home()}/.local/bin:" + os.environ.get("PATH", "/usr
 PORT = int(os.environ.get("PAINEL_PORT", "8765"))
 HOME = Path.home()
 CLAUDE_DIRS = [d for d in (HOME / ".claude-trabalho", HOME / ".claude") if d.is_dir()]
-DATA = HOME / ".local/share/claude-painel"
+DATA = HOME / ".local/share/flow"
 DATA.mkdir(parents=True, exist_ok=True)
 TAGS_FILE = DATA / "tags.json"
 HERE = Path(__file__).resolve().parent

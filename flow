@@ -7,7 +7,7 @@ if hyprctl clients -j | grep -q '"title": "Flow"'; then
   exec hyprctl dispatch 'hl.dsp.focus({ window = "title:^Flow$" })' >/dev/null
 fi
 if ! curl -fs "http://127.0.0.1:$PORT/api/sessions" -o /dev/null; then
-  nohup env -u CLAUDECODE -u CLAUDE_CODE_CHILD_SESSION python3 "$DIR/server.py" >"$HOME/.local/share/claude-painel/server.log" 2>&1 &
+  nohup env -u CLAUDECODE -u CLAUDE_CODE_CHILD_SESSION python3 "$DIR/server.py" >"$HOME/.local/share/flow/server.log" 2>&1 &
   for _ in $(seq 20); do curl -fs "http://127.0.0.1:$PORT/" -o /dev/null && break; sleep 0.2; done
 fi
-setsid -f google-chrome --no-first-run --no-default-browser-check --app="http://127.0.0.1:$PORT/" --class=claude-painel --user-data-dir="$HOME/.local/share/claude-painel/chrome" >/dev/null 2>&1 </dev/null
+setsid -f google-chrome --no-first-run --no-default-browser-check --app="http://127.0.0.1:$PORT/" --class=claude-painel --user-data-dir="$HOME/.local/share/flow/chrome" >/dev/null 2>&1 </dev/null
