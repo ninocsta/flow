@@ -32,15 +32,25 @@ HERE = Path(__file__).resolve().parent
 RECENT_DAYS = 3
 
 GH_RE = re.compile(r"(?:/home/[^/]+|~)/github/([A-Za-z0-9_-]+)(?![A-Za-z0-9_.-]*\.md)")
-CODE_RE = re.compile(r"\b(DEM|TAR|MSW|USI|MULTI|INF|QA)-\d+\b")
 ASSUNTOS = ["Demanda", "Tarefa", "Revisão de PR", "Criar tarefas", "Deploy", "Infra", "Outro"]
-SKILL_ASSUNTO = {
-    "revisar-entrega": "Revisão de PR", "code-review": "Revisão de PR",
-    "workspace-gestao": "Criar tarefas", "migrar-redmine-workspace": "Criar tarefas",
-    "redmine-api": "Criar tarefas", "deploy-producao": "Deploy", "core-gfi-subir": "Deploy",
-    "usi-subir-app": "Deploy", "salao-deploy-check": "Deploy", "coolify-upgrade": "Infra",
-    "coolify-servidor-novo": "Infra", "we-serve-servidores": "Infra", "dia": "Outro",
-}
+
+
+def _regras():
+    """Regras pessoais de agrupamento em ~/.local/share/flow/regras.json (fora do repo):
+    {"prefixos": ["DEM", "TAR"], "prefixo_demanda": "DEM", "skills": {"minha-skill": "Deploy"},
+     "palavras": {"deploy": "Deploy"}}"""
+    try:
+        return json.loads((DATA / "regras.json").read_text())
+    except Exception:
+        return {}
+
+
+REGRAS = _regras()
+_pref = REGRAS.get("prefixos")
+CODE_RE = re.compile(rf"\b({'|'.join(map(re.escape, _pref))})-\d+\b" if _pref else r"\b[A-Z]{2,8}-\d{1,6}\b")
+PREFIXO_DEMANDA = REGRAS.get("prefixo_demanda", "DEM") + "-"
+SKILL_ASSUNTO = {"code-review": "Revisão de PR", **REGRAS.get("skills", {})}
+PALAVRAS_ASSUNTO = REGRAS.get("palavras") or {"pr ": "Revisão de PR", "deploy": "Deploy", "tarefa": "Criar tarefas"}
 
 PRICES = {"claude-opus-5-5": (4, 20, 0.2), "claude-opus-5": (5, 25, 0.5), "claude-sonnet-5-5": (2, 10, 0.1),
           "claude-sonnet-5": (2, 10, 0.2), "claude-haiku-5-5": (0.1, 0.5, 0.01), "claude-fable-5-2": (8, 40, 0.2)}
@@ -259,19 +269,19 @@ def projetos_pessoais():
 
 
 def guess_assunto(info, cwd):
-    if espaco_of(cwd, info=info) == "pessoal":  # pessoal: assunto = projeto (tasks, salao, capta…)
+    if espaco_of(cwd, info=info) == "pessoal":  # pessoal: assunto = nome do projeto em ~/github
         rel = os.path.relpath(cwd, HOME / "github") if cwd.startswith(str(HOME / "github") + "/") else ""
         return rel.split("/")[0] if rel else (info.get("proj") or "Outro")
     for s in info.get("skills", []):
         if s in SKILL_ASSUNTO:
             return SKILL_ASSUNTO[s]
     codes = info.get("codes", [])
-    if any(c.startswith("DEM-") for c in codes):
+    if any(c.startswith(PREFIXO_DEMANDA) for c in codes):
         return "Demanda"
     if codes:
         return "Tarefa"
     blob = " ".join(filter(None, [info.get("first"), info.get("ai_title")])).lower()
-    for word, a in (("pr ", "Revisão de PR"), ("deploy", "Deploy"), ("coolify", "Infra"), ("tarefa", "Criar tarefas")):
+    for word, a in PALAVRAS_ASSUNTO.items():
         if word in blob:
             return a
     return "Outro"

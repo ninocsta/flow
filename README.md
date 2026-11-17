@@ -76,6 +76,7 @@ Formatos de hora: `08:07`, `amanhã 8h`, `18/11 09:00`, `2026-11-18 08:07`, `+30
 
 - **Zero dependências:** Python 3 só com a biblioteca padrão e uma página HTML.
 - **Estado em `~/.local/share/flow/`:** `tags.json` (títulos, notas, espera), `agenda.json` e `config.json`.
+- **Regras pessoais em `~/.local/share/flow/regras.json`** (opcional, fica fora do repositório): prefixos de código de tarefa (`DEM-12`), skill → assunto e palavra → assunto, usados para agrupar as sessões.
 - **Só aceita conexões locais:** escuta apenas em `127.0.0.1`, e os POSTs exigem o header `X-Painel: 1`.
 
 ## Requisitos
